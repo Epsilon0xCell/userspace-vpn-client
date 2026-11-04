@@ -1,0 +1,13 @@
+# Real OpenVPN profiles carry key material. Never commit them.
+# The one exception is the documentation template, which is fake.
+*.ovpn
+!examples/profile-template.ovpn
+
+# Runtime state and logs
+run/
+*.log
+
+# Built artifacts and fetched upstream sources
+dist/
+src/
+build/
