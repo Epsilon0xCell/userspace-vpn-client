@@ -97,13 +97,13 @@ Proven end to end on HackTheBox Starting Point, 2026-11-04, from a VM with no us
 - Telnet session: logged in as `root` with no password prompt, read files on the box, clean logout
 - Data channel byte counters grew in both directions (the control channel alone cannot do that)
 
-No flag value, profile contents, or key material appears in this repo. The full engagement writeup draft lives in `docs/meow-writeup.md`.
+No profile contents or key material appears in this repo. The full engagement writeup draft lives in `docs/meow-writeup.md`, and it does include the flag value read on the Meow box in that run, because the draft is staged for the private writeups repo.
 
 ## Limitations
 
 - Use a TCP transport profile in restricted cells. The whole point is surviving environments where UDP is blocked; a UDP profile may still work elsewhere, but TCP is the tested path.
 - Performance is lab-grade. A userspace lwIP stack behind a pipe will not win throughput contests against a kernel tunnel. It is built for access, not bandwidth.
-- One profile, one tunnel per `run.sh` launch. Run multiple instances with different local ports if you need more.
+- One profile, one tunnel at a time. `run.sh` keeps a single PID file, a single log, and a fixed SOCKS port (1081), and it refuses to start while an instance is already running. Stop the tunnel with `./run.sh --stop` before starting a different profile. Other hosts on the same VPN are reachable through the SOCKS proxy without a second tunnel.
 - The launcher writes its PID file and logs under `./run/`. Stop it with `./run.sh --stop`.
 
 ## Alternatives considered
