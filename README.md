@@ -1,8 +1,41 @@
-# Userspace OpenVPN Client for TUN-Less Environments
+![Userspace OpenVPN client for TUN-less environments](banner.png)
 
-An OpenVPN client setup that works where OpenVPN normally cannot: machines with no usable `/dev/net/tun`, no `CAP_NET_ADMIN`, blocked UDP, and no permission to create kernel network devices. Sandboxed agent VMs, locked-down containers, CI runners, restricted lab cells.
+# userspace-vpn-client
 
-It is not a reimplementation. It runs the real OpenVPN protocol code and replaces exactly one thing: the kernel tunnel device.
+**No `/dev/net/tun`, no root, UDP blocked, and you still need the VPN up. This makes stock OpenVPN run there.**
+
+Restricted VMs, sandboxed agent cells, CI runners, and locked-down containers routinely deny the three things OpenVPN assumes: a kernel tunnel device, UDP transport, and root network configuration. The TLS session itself completes fine and then the client dies creating its tunnel. This repo runs the real OpenVPN protocol code with exactly one change: the kernel tunnel device is replaced by a pipe into a userspace TCP/IP stack, so the tunnel works with no device, no privileges, and a TCP profile.
+
+Proven end to end on HackTheBox Starting Point from a VM with no usable tunnel device and blocked UDP: full session, port forward into the lab, and a SOCKS5 proxy riding the same tunnel.
+
+## Quickstart
+
+```sh
+git clone https://github.com/Epsilon0xCell/userspace-vpn-client.git
+cd userspace-vpn-client
+./bootstrap.sh
+./run.sh /path/to/profile.ovpn 10.129.58.140 23 2323
+# in another terminal:
+telnet 127.0.0.1 2323
+./run.sh --stop
+```
+
+`bootstrap.sh` is the one command: on Debian/Ubuntu it installs the build dependencies, then builds both components into `./dist/` and prints the run command. `./bootstrap.sh --check` verifies a checkout and its toolchain without building. Not on Debian/Ubuntu, or want the pieces separately: `./build.sh` then `./run.sh`, with the dependency list in the header of `build.sh`.
+
+Every `run.sh` launch also opens a SOCKS5 proxy at `127.0.0.1:1081` over the same tunnel, so SOCKS-aware tools can reach anything on the VPN, not just the forwarded port.
+
+### Docker option
+
+```sh
+docker build -t userspace-vpn .
+docker run -d --name vpn -p 127.0.0.1:2323:2323 -p 127.0.0.1:1081:1081 \
+  -v /path/to/profile.ovpn:/config/profile.ovpn:ro \
+  userspace-vpn /config/profile.ovpn 10.129.58.140 23 2323
+```
+
+The image builds the client and runs `run.sh` as its entrypoint; publish the local forward and the SOCKS port as shown. No tunnel device is needed inside the container either.
+
+`run.sh` takes `<profile.ovpn> <target-ip> <target-port> <local-port> [gateway] [netmask]`. Gateway and netmask come from the server's PUSH reply (watch the OpenVPN log on your first run); the defaults are the HackTheBox Starting Point values from the reference run: gateway `10.10.16.1`, netmask `255.255.254.0`. Your profile stays yours: `run.sh` never prints it, and `.gitignore` excludes `*.ovpn` on purpose.
 
 ## The problem
 
@@ -43,20 +76,6 @@ Two upstream projects, pinned to exact commits, do the heavy lifting. This repo 
 ```
 
 Because the protocol code is stock OpenVPN, everything the server throws at it works: tls-crypt, dynamic tls-crypt keying, legacy CBC data channels, pushed routes, the lot. A clean-room client has to reimplement every one of those details, and one missed detail is a silent data channel (see Alternatives Considered).
-
-## Quickstart
-
-```sh
-./build.sh
-./run.sh /path/to/profile.ovpn 10.129.58.140 23 2323
-# in another terminal:
-telnet 127.0.0.1 2323
-./run.sh --stop
-```
-
-`build.sh` clones the two upstream repos at their pinned commits, builds both, and drops the binaries in `./dist/`. Build dependencies are listed in the header of `build.sh` (Debian/Ubuntu package names). Nothing is installed system-wide by the scripts, and no upstream code is vendored into this repo.
-
-`run.sh` takes `<profile.ovpn> <target-ip> <target-port> <local-port> [gateway] [netmask]`. The gateway and netmask come from the server's PUSH reply (watch the OpenVPN log on your first run). The defaults are the values HackTheBox Starting Point pushed in the reference run below: gateway `10.10.16.1`, netmask `255.255.254.0`. Your profile stays yours: `run.sh` never prints it, and `.gitignore` excludes `*.ovpn` on purpose.
 
 ## Usage examples
 
