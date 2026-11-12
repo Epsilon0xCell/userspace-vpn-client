@@ -2,6 +2,8 @@
 
 # userspace-vpn-client
 
+[![Release](https://img.shields.io/github/v/release/Epsilon0xCell/userspace-vpn-client)](https://github.com/Epsilon0xCell/userspace-vpn-client/releases) [![License](https://img.shields.io/github/license/Epsilon0xCell/userspace-vpn-client)](LICENSE) [![Stars](https://img.shields.io/github/stars/Epsilon0xCell/userspace-vpn-client)](https://github.com/Epsilon0xCell/userspace-vpn-client/stargazers)
+
 **No `/dev/net/tun`, no root, UDP blocked, and you still need the VPN up. This makes stock OpenVPN run there.**
 
 Restricted VMs, sandboxed agent cells, CI runners, and locked-down containers routinely deny the three things OpenVPN assumes: a kernel tunnel device, UDP transport, and root network configuration. The TLS session itself completes fine and then the client dies creating its tunnel. This repo runs the real OpenVPN protocol code with exactly one change: the kernel tunnel device is replaced by a pipe into a userspace TCP/IP stack, so the tunnel works with no device, no privileges, and a TCP profile.
@@ -36,6 +38,19 @@ docker run -d --name vpn -p 127.0.0.1:2323:2323 -p 127.0.0.1:1081:1081 \
 The image builds the client and runs `run.sh` as its entrypoint; publish the local forward and the SOCKS port as shown. No tunnel device is needed inside the container either.
 
 `run.sh` takes `<profile.ovpn> <target-ip> <target-port> <local-port> [gateway] [netmask]`. Gateway and netmask come from the server's PUSH reply (watch the OpenVPN log on your first run); the defaults are the HackTheBox Starting Point values from the reference run: gateway `10.10.16.1`, netmask `255.255.254.0`. Your profile stays yours: `run.sh` never prints it, and `.gitignore` excludes `*.ovpn` on purpose.
+
+## Contents
+
+- [Quickstart](#quickstart)
+  - [Docker option](#docker-option)
+- [The problem](#the-problem)
+- [How it works](#how-it-works)
+- [Usage examples](#usage-examples)
+- [Field note: telnet and IAC negotiation](#field-note-telnet-and-iac-negotiation)
+- [Evidence](#evidence)
+- [Limitations](#limitations)
+- [Alternatives considered](#alternatives-considered)
+- [License and attribution](#license-and-attribution)
 
 ## The problem
 
